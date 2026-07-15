@@ -22,7 +22,7 @@ export default function AdminLayout({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Combinamos la verificación inicial con la escucha en tiempo real
+        // Combinacion de la verificación inicial con la escucha en tiempo real
         const verificarYSubscribir = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             
@@ -73,7 +73,7 @@ export default function AdminLayout({ children }) {
     // en la URL, lo mandamos al login en lugar de mostrarle un children vacío.
     useEffect(() => {
         if (!loading && !usuario && pathname !== '/hojas-de-vida') {
-            // Permitimos el acceso anónimo UNICAMENTE a la hoja de vida pública
+            // Permitir el acceso anónimo UNICAMENTE a la hoja de vida pública
             router.push('/login');
         }
     }, [usuario, loading, pathname, router]);
