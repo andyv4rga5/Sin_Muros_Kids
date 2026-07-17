@@ -10,7 +10,9 @@ import {
     UserCheck,
     BarChart3,
     LogOut,
-    Bell
+    Bell,
+    Menu,
+    X
 } from 'lucide-react';
 
 export default function AdminLayout({ children }) {
@@ -19,11 +21,12 @@ export default function AdminLayout({ children }) {
     const [usuario, setUsuario] = useState(null);
     const [perfil, setPerfil] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
 
     useEffect(() => {
         const verificarYSubscribir = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            
+
             if (session?.user) {
                 setUsuario(session.user);
                 await cargarPerfil(session.user.id);
@@ -72,6 +75,11 @@ export default function AdminLayout({ children }) {
         }
     }, [usuario, loading, pathname, router]);
 
+    // Cerrar el menú desplegable móvil cuando cambia de ruta
+    useEffect(() => {
+        setMenuMovilAbierto(false);
+    }, [pathname]);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
@@ -90,6 +98,7 @@ export default function AdminLayout({ children }) {
         );
     }
 
+    // Estilos Escritorio
     const getLinkStyles = (route) => {
         const isActive = pathname === route;
         return isActive
@@ -104,11 +113,16 @@ export default function AdminLayout({ children }) {
             : "w-4 h-4 text-slate-500 group-hover:text-white transition-colors";
     };
 
-    return (
-        <div className="flex h-screen w-screen bg-[#F8FAFC] overflow-hidden">
+    // Estilos Barra Móvil (Botones Inferiores)
+    const getMobileTabStyles = (route) => {
+        return pathname === route ? "text-indigo-600 font-bold" : "text-slate-400 font-medium";
+    };
 
-            {/* BARRA LATERAL IZQUIERDA - Completamente fija */}
-            <aside className="w-64 bg-[#0F172A] text-slate-400 flex flex-col justify-between p-4 shrink-0 h-full overflow-y-auto">
+    return (
+        <div className="flex h-screen w-screen bg-[#F8FAFC] overflow-hidden flex-col md:flex-row">
+
+            {/* BARRA LATERAL IZQUIERDA - Solo se ve en Escritorio (md en adelante) */}
+            <aside className="hidden md:flex w-64 bg-[#0F172A] text-slate-400 flex-col justify-between p-4 shrink-0 h-full overflow-y-auto">
                 <div>
                     {/* Logo */}
                     <div className="flex flex-col items-center pt-4 pb-2 mb-6 border-b border-slate-800/50">
@@ -156,12 +170,12 @@ export default function AdminLayout({ children }) {
                     </nav>
                 </div>
 
-                {/* Cerrar Sesión - Siempre abajo del aside */}
+                {/* Cerrar Sesión Escritorio */}
                 <div className="space-y-1 border-t border-slate-800 pt-4 mt-auto">
                     <button
-                        onClick={async () => { 
-                            await supabase.auth.signOut(); 
-                            window.location.href = '/login'; 
+                        onClick={async () => {
+                            await supabase.auth.signOut();
+                            window.location.href = '/login';
                         }}
                         className="w-full text-left flex items-center gap-3 px-3 py-2 text-xs text-red-400 hover:text-red-300 transition-all group"
                     >
@@ -172,15 +186,21 @@ export default function AdminLayout({ children }) {
             </aside>
 
             {/* CONTENIDO DE LA APP ADMINISTRATIVA */}
-            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden pb-[72px] md:pb-0">
 
-                {/* NAV SUPERIOR - Fijo arriba */}
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
-                    <div className="text-slate-400 text-xs font-semibold">
-                        Panel Administrativo
+                {/* NAV SUPERIOR - Adaptado para Móvil (Muestra botón menú) */}
+                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 md:px-8 shrink-0 z-20">
+                    <div className="text-slate-800 md:text-slate-400 text-xs font-bold md:font-semibold flex items-center gap-2">
+                        {/* Pequeño logo/avatar para móviles en el header */}
+                        <img
+                            src="https://jgeoucfxieahezuayswr.supabase.co/storage/v1/object/public/Logos/Gemini_Generated_Image_c3mpj0c3mpj0c3mp-removebg-preview.png"
+                            className="w-8 h-8 object-contain md:hidden"
+                            alt="Móvil logo"
+                        />
+                        <span>Panel Administrativo</span>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <button className="text-slate-400 hover:text-slate-600 text-sm">
                             <Bell className="w-4 h-4" />
                         </button>
@@ -192,11 +212,125 @@ export default function AdminLayout({ children }) {
                     </div>
                 </header>
 
-                {/* ÁREA DE CONTENIDO CON SCROLL INDEPENDIENTE */}
-                <main className="flex-1 overflow-y-auto p-8 bg-[#F8FAFC]">
+                {/* MENÚ MÓVIL DESPLEGABLE POSTERIOR (Para opciones que no caben abajo) */}
+                {menuMovilAbierto && (
+                    <div className="fixed inset-0 bg-[#0F172A]/90 z-40 md:hidden flex flex-col p-6 pt-24 animate-in fade-in duration-200">
+                        <button
+                            onClick={() => setMenuMovilAbierto(false)}
+                            className="absolute top-5 right-6 text-white p-2"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                        <nav className="space-y-3 flex-1">
+                            {perfil?.rolid === 1 && (
+                                <>
+                                    <a href="/leaders" className="flex items-center gap-3 text-white text-base font-semibold py-3 border-b border-slate-800">
+                                        <UserCheck className="w-5 h-5 text-slate-400" /> Líderes
+                                    </a>
+                                    <a href="/reports" className="flex items-center gap-3 text-white text-base font-semibold py-3 border-b border-slate-800">
+                                        <BarChart3 className="w-5 h-5 text-slate-400" /> Reportes
+                                    </a>
+                                </>
+                            )}
+                        </nav>
+                        <button
+                            onClick={async () => {
+                                await supabase.auth.signOut();
+                                window.location.href = '/login';
+                            }}
+                            className="w-full flex items-center justify-center gap-3 py-4 text-red-400 border border-red-500/30 rounded-xl font-bold bg-red-500/5"
+                        >
+                            <LogOut className="w-5 h-5" /> Cerrar Sesión
+                        </button>
+                    </div>
+                )}
+
+                {/* ÁREA DE CONTENIDO PRINCIPAL */}
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#F8FAFC]">
                     {children}
                 </main>
 
+            </div>
+
+            {/* 📱 NAV BAR FLOTANTE INFERIOR - Con Burbuja Fluida y Animación de Rebote */}
+            <div className="fixed bottom-0 left-0 right-0 h-[68px] bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] md:hidden z-30 px-4">
+                <div className="relative w-full h-full flex items-center justify-around">
+
+                    {/* INDICADOR FLOTANTE (Círculo viajero con efecto rebote) */}
+                    <div
+                        className="absolute -top-4 w-14 h-14 rounded-full bg-indigo-600 shadow-lg shadow-indigo-600/40 transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] z-0"
+                        style={{
+                            left: pathname === '/admin-dashboard'
+                                ? '12.5%'
+                                : pathname === '/asistencia'
+                                    ? '37.5%'
+                                    : pathname === '/hojas-de-vida'
+                                        ? '62.5%'
+                                        : '-100%',
+                            transform: 'translateX(-50%)',
+                            display: ['/admin-dashboard', '/asistencia', '/hojas-de-vida'].includes(pathname) ? 'block' : 'none'
+                        }}
+                    />
+
+                    {/* Opción 1: Inicio / Dashboard */}
+                    {(perfil?.rolid === 1 || perfil?.rolid === 2) ? (
+                        <a
+                            href="/admin-dashboard"
+                            className="flex flex-col items-center justify-center w-16 h-full z-10 transition-all duration-200"
+                        >
+                            <LayoutDashboard
+                                className={`w-5 h-5 transition-all duration-300 ${pathname === '/admin-dashboard' ? 'text-white -translate-y-4 scale-110' : 'text-slate-400'
+                                    }`}
+                            />
+                            <span className={`text-[10px] mt-1 font-semibold transition-all duration-300 ${pathname === '/admin-dashboard' ? 'text-indigo-600 font-bold opacity-100 translate-y-1' : 'text-slate-400'
+                                }`}>
+                                Inicio
+                            </span>
+                        </a>
+                    ) : (
+                        <div className="w-16"></div>
+                    )}
+
+                    {/* Opción 2: Asistencia */}
+                    <a
+                        href="/asistencia"
+                        className="flex flex-col items-center justify-center w-16 h-full z-10 transition-all duration-200"
+                    >
+                        <CalendarCheck
+                            className={`w-5 h-5 transition-all duration-300 ${pathname === '/asistencia' ? 'text-white -translate-y-4 scale-110' : 'text-slate-400'
+                                }`}
+                        />
+                        <span className={`text-[10px] mt-1 font-semibold transition-all duration-300 ${pathname === '/asistencia' ? 'text-indigo-600 font-bold opacity-100 translate-y-1' : 'text-slate-400'
+                            }`}>
+                            Asistencia
+                        </span>
+                    </a>
+
+                    {/* Opción 3: Niños / Hojas de vida */}
+                    <a
+                        href="/hojas-de-vida"
+                        className="flex flex-col items-center justify-center w-16 h-full z-10 transition-all duration-200"
+                    >
+                        <Users
+                            className={`w-5 h-5 transition-all duration-300 ${pathname === '/hojas-de-vida' ? 'text-white -translate-y-4 scale-110' : 'text-slate-400'
+                                }`}
+                        />
+                        <span className={`text-[10px] mt-1 font-semibold transition-all duration-300 ${pathname === '/hojas-de-vida' ? 'text-indigo-600 font-bold opacity-100 translate-y-1' : 'text-slate-400'
+                            }`}>
+                            Niños
+                        </span>
+                    </a>
+
+                    {/* Opción 4: Más (Abre el modal) */}
+                    <button
+                        onClick={() => setMenuMovilAbierto(true)}
+                        className="flex flex-col items-center justify-center w-16 h-full z-10 text-slate-400"
+                    >
+                        <Menu className="w-5 h-5" />
+                        <span className="text-[10px] mt-1 font-semibold">Más</span>
+                    </button>
+
+                </div>
             </div>
         </div>
     );
