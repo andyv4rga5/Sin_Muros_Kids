@@ -42,29 +42,18 @@ export default function Login() {
                 throw new Error('No se encontró un perfil o rol asignado a este usuario.');
             }
 
-            // 3. Direccionar según el rolId
-            switch (perfil.rolid) {
-                case 1: // Administrador
-                    router.push('/admin-dashboard');
-                    break;
-                case 2: // Coordinador / Líder
-                case 3: // Capitán
-                    router.push('/capitan-dashboard');
-                    break;
-                case 4: // Servidor
-                    router.push('/asistencia');
-                    break;
-                default:
-                    router.push('/');
+            if (perfil.rolid === 6) {
+                router.push('/servidores');
+            } else {
+                router.push('/asistencia');
             }
-
         } catch (err) {
             setError(err.message || 'Error al iniciar sesión. Verifica tus datos.');
         } finally {
             setLoading(false);
         }
     };
-    
+
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-900 font-sans p-4 relative overflow-hidden">

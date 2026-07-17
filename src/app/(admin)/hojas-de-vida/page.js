@@ -83,7 +83,7 @@ export default function HojasDeVidaPage() {
 
       // Calcular la edad basada en el año de nacimiento
       const anioNacimiento = new Date(formData.menor_fechaNacimiento).getFullYear();
-      const anioActual = new Date().getFullYear(); 
+      const anioActual = new Date().getFullYear();
       const edadMinisterial = anioActual - anioNacimiento;
 
       // Determinar el grupoid
@@ -101,17 +101,15 @@ export default function HojasDeVidaPage() {
       }
 
       // --- PROCESAR ACUDIENTES PREVINIENDO DUPLICADOS EXCLUSIVOS ---
-      // Filtro de acudientes que no tengan teléfono o que sean exactamente idénticos en nombre y teléfono.
       const acudientesProcesados = [];
       const llavesVistas = new Set();
 
       formData.acudientes.forEach((ac) => {
         const tel = ac.telefono.trim();
         const nombreYApellido = `${limpiarTexto(ac.nombre)}${limpiarTexto(ac.apellido)}`.toLowerCase();
-        
+
         if (!tel) return; // Ignorar vacíos
 
-        // Generar una clave única combinando nombre y teléfono
         const claveUnica = `${nombreYApellido}_${tel}`;
 
         if (!llavesVistas.has(claveUnica)) {
@@ -124,7 +122,6 @@ export default function HojasDeVidaPage() {
         throw new Error("Debe ingresar al menos un acudiente válido con teléfono.");
       }
 
-      // --- LÓGICA DE CARGA DE ACUDIENTES EVITANDO DUPLICIDAD EN BASE DE DATOS ---
       const idsAcudientesVinculados = [];
       const telefonosEnEsteEnvio = new Set();
 
@@ -132,14 +129,11 @@ export default function HojasDeVidaPage() {
         const ac = acudientesProcesados[i];
         let telContacto = ac.telefono.trim();
 
-        // Solución al problema: Si el teléfono ya fue usado por el acudiente anterior en esta misma solicitud,
-        // se agrega prefijo '57' para diferenciar el registro en la base de datos sin perder caracteres especiales.
         if (telefonosEnEsteEnvio.has(telContacto)) {
           telContacto = `(57)${telContacto}`;
         }
         telefonosEnEsteEnvio.add(telContacto);
 
-        // 1. Buscar si el acudiente ya existe por su teléfono
         const { data: acudienteExistente, error: errSearch } = await supabase
           .from('acudientes')
           .select('id')
@@ -151,10 +145,8 @@ export default function HojasDeVidaPage() {
         let acudienteId;
 
         if (acudienteExistente) {
-          // Si ya existe bajo ese número de teléfono, reutilizamos su ID
           acudienteId = acudienteExistente.id;
         } else {
-          // Si no existe (es nuevo), lo insertamos con su respectivo nombre completo
           const { data: nuevoAcudiente, error: errInsertAc } = await supabase
             .from('acudientes')
             .insert({
@@ -170,15 +162,13 @@ export default function HojasDeVidaPage() {
           acudienteId = nuevoAcudiente.id;
         }
 
-        // Guardamos la relación asignando quién es el principal
         idsAcudientesVinculados.push({
           acudiente_id: acudienteId,
           parentesco: ac.parentesco || 'Familiar',
-          es_principal: i === 0 // El primero de la lista de acudientes será el principal
+          es_principal: i === 0
         });
       }
 
-      // --- INSERTAR MENOR ---
       const { data: menorInsertado, error: errM } = await supabase
         .from('menores')
         .insert({
@@ -202,7 +192,6 @@ export default function HojasDeVidaPage() {
 
       if (errM) throw errM;
 
-      // --- CREAR RELACIONES EN LA TABLA INTERMEDIA (Muchos a Muchos) ---
       const relacionesAInsertar = idsAcudientesVinculados.map(rel => ({
         menor_id: menorInsertado.id,
         acudiente_id: rel.acudiente_id,
@@ -217,8 +206,7 @@ export default function HojasDeVidaPage() {
       if (errRel) throw errRel;
 
       alert('¡Menor y acudiente(s) registrados y vinculados con éxito! 🎉');
-      
-      // Limpiar Formulario
+
       setFormData({
         menor_nombre: '', menor_apellido: '', menor_conQuienVive: '', menor_conQuienAsiste: '',
         menor_fechaNacimiento: '', menor_sexo: 'femenino', menor_documento: '', menor_direccion: '', menor_barrio: '',
@@ -236,9 +224,18 @@ export default function HojasDeVidaPage() {
   return (
     <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8 items-start px-4 md:px-0 py-6">
       <div className="flex-1 min-w-0 bg-white md:bg-transparent p-6 md:p-0 rounded-2xl border border-slate-100 md:border-transparent">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">Registro de Hoja de Vida</h1>
-          <p className="text-xs text-slate-500 mt-1">Complete la información del menor y su acudiente para el proceso de registro a SMK.</p>
+
+        {/* HEADER CON LOGO INTEGRADO */}
+        <header className="mb-8 flex items-center gap-5 border-b border-slate-100 pb-6">
+          <img
+            src="https://jgeoucfxieahezuayswr.supabase.co/storage/v1/object/public/Logos/Gemini_Generated_Image_c3mpj0c3mpj0c3mp-removebg-preview.png"
+            alt="Logo Sin Muros Kids"
+            className="w-[100px] h-[50px] object-contain shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold text-slate-900 leading-tight">Registro de Hoja de Vida</h1>
+            <p className="text-xs text-slate-500 mt-1.5 leading-normal">Complete la información del menor y su acudiente para el proceso de registro al ministerio Sin Muros Kids.</p>
+          </div>
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-8">

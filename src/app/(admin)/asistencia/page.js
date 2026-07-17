@@ -276,57 +276,61 @@ export default function AsistenciaPage() {
       </div>
 
       {/* METRICAS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Total Esperado */}
+        <div className="bg-white border border-slate-100 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col justify-between h-28 sm:h-32 relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-              <Users className="w-5 h-5" />
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-slate-800 leading-none">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">
               {loadingDatos ? '...' : totalMenores}
             </h3>
-            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Total Esperado</p>
+            <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Total Esperado</p>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32">
+        {/* Presentes Hoy */}
+        <div className="bg-white border border-slate-100 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col justify-between h-28 sm:h-32">
           <div className="flex items-center justify-between">
             <span className="p-2 bg-purple-50 text-purple-600 rounded-xl">
-              <UserCheck className="w-5 h-5" />
+              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
-            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
+            <span className="text-[8px] sm:text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wider">Live</span>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-slate-800 leading-none">
+            <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">
               {loadingDatos ? '...' : menores.filter(m => m.checkIn !== '--:--').length}
             </h3>
-            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Presentes Hoy</p>
+            <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Presentes Hoy</p>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32">
+        {/* Líderes Activos */}
+        <div className="bg-white border border-slate-100 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col justify-between h-28 sm:h-32">
           <div>
             <span className="p-2 bg-orange-50 text-orange-600 rounded-xl inline-block">
-              <UserCheck className="w-5 h-5" />
+              <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-slate-800 leading-none">18</h3>
-            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Líderes Activos</p>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">18</h3>
+            <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Líderes Activos</p>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm flex flex-col justify-between h-32">
+        {/* Alertas Pendientes */}
+        <div className="bg-white border border-slate-100 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col justify-between h-28 sm:h-32">
           <div>
             <span className="p-2 bg-red-50 text-red-600 rounded-xl inline-block">
-              <AlertTriangle className="w-5 h-5" />
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
           </div>
           <div>
-            <h3 className="text-2xl font-black text-slate-800 leading-none">03</h3>
-            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Alertas Pendientes</p>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-800 leading-none">03</h3>
+            <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1.5">Alertas Pendientes</p>
           </div>
         </div>
       </div>
@@ -352,22 +356,22 @@ export default function AsistenciaPage() {
             <button
               onClick={() => setFiltroAsistencia('ausentes')}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all ${filtroAsistencia === 'ausentes'
-                  ? 'bg-white text-blue-600 shadow-sm font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-blue-600 shadow-sm font-bold'
+                : 'text-slate-500 hover:text-slate-800'
                 }`}
             >
               <LogIn className="w-3.5 h-3.5" />
-              Check-In (Ausentes)
+              Check-In
             </button>
             <button
               onClick={() => setFiltroAsistencia('presentes')}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all ${filtroAsistencia === 'presentes'
-                  ? 'bg-white text-blue-600 shadow-sm font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-blue-600 shadow-sm font-bold'
+                : 'text-slate-500 hover:text-slate-800'
                 }`}
             >
               <LogOut className="w-3.5 h-3.5" />
-              Check-Out (Presentes)
+              Check-Out
             </button>
           </div>
 
@@ -406,14 +410,14 @@ export default function AsistenciaPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* <div className="flex items-center gap-2 self-end sm:self-auto">
               <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors">
                 <SlidersHorizontal className="w-3.5 h-3.5" />
               </button>
               <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors">
                 <Download className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </div> */}
           </div>
 
           <div className="overflow-x-auto min-h-[200px] relative">
