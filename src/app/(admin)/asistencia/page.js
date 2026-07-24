@@ -422,6 +422,7 @@ export default function AsistenciaPage() {
                 <span className="text-xs text-slate-500 font-medium">Cargando menores de la congregación...</span>
               </div>
             ) : (
+              // TABLA DE NIÑOS
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400 tracking-wider bg-slate-50/70">
@@ -451,7 +452,7 @@ export default function AsistenciaPage() {
                             <img
                               src={kid.urlfotoperfil || AVATAR_DEFECTO}
                               alt={`${kid.nombrecompleto} ${kid.apellidocompleto}`}
-                              className="w-14 h-14 rounded-full object-cover ring-2 ring-slate-100 shadow-sm shrink-0"
+                              className="w-24 h-24 rounded-full object-cover ring-2 ring-slate-100 shadow-sm shrink-0"
                               onError={(e) => {
                                 e.target.src = AVATAR_DEFECTO;
                               }}
