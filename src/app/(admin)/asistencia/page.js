@@ -7,8 +7,6 @@ import {
   UserCheck,
   UserX,
   AlertTriangle,
-  SlidersHorizontal,
-  Download,
   Calendar,
   CheckCircle2,
   Phone,
@@ -18,8 +16,6 @@ import {
   Search,
   LogIn,
   LogOut,
-  User,
-  Check
 } from 'lucide-react';
 
 const MAPA_GRUPOS = {
@@ -68,7 +64,7 @@ export default function AsistenciaPage() {
 
   const fechaHoy = obtenerFechaHoyLocal();
 
-  // 1. Cargar el usuario autenticado
+  // Cargar el usuario autenticado
   useEffect(() => {
     async function obtenerUsuario() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -81,12 +77,12 @@ export default function AsistenciaPage() {
 
   useEffect(() => {
     const opciones = { day: 'numeric', month: 'short', year: 'numeric' };
-    // Esto formateará la fecha actual como "15 jul. 2026" (o según el día actual)
+    // Esto formatea la fecha actual 
     const fechaHoyStr = new Date().toLocaleDateString('es-ES', opciones);
     setFechaFormateada(fechaHoyStr);
   }, []);
 
-  // 2. Cargar menores, asistencias del día y acudientes asociados
+  // Cargar menores, asistencias del día y acudientes asociados
   const cargarDatosAsistencia = async () => {
     try {
       setLoadingDatos(true);
@@ -140,7 +136,6 @@ export default function AsistenciaPage() {
             parentesco: rel.parentesco,
             esPrincipal: rel.es_principal
           }))
-          // Ordenar dejando al acudiente principal de primero
           .sort((a, b) => (b.esPrincipal ? 1 : 0) - (a.esPrincipal ? 1 : 0));
 
         return {
@@ -170,7 +165,7 @@ export default function AsistenciaPage() {
     setDropdownAbiertoId(null);
   }, [servicioActivo]);
 
-  // 3. Registrar Entrada (Check-In)
+  // Registrar Entrada (Check-In)
   const handleCheckIn = async (menorId) => {
     if (!usuarioId) {
       alert("Error: No se pudo identificar al usuario activo. Por favor inicia sesión.");
@@ -200,7 +195,7 @@ export default function AsistenciaPage() {
     }
   };
 
-  // 4. Registrar Salida (Check-Out) con Acudiente Seleccionado
+  // Registrar Salida (Check-Out) con Acudiente Seleccionado
   const handleCheckOut = async (asistenciaId, menorId, nombreAcudiente) => {
     try {
       setProcesandoId(menorId);

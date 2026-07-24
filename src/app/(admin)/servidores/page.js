@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase'; // Ajusta la ruta si es necesario según tu estructura
+import { supabase } from '../../lib/supabase';
 import { Users, Calendar, Loader2, AlertTriangle } from 'lucide-react';
 
 const MAPA_GRUPOS = {
@@ -21,7 +21,7 @@ export default function RefrigeriosPage() {
     const [conteosPorGrupo, setConteosPorGrupo] = useState({});
     const [totalAsistentes, setTotalAsistentes] = useState(0);
 
-    // Lista de textos únicos de alergias/restricciones presentes hoy
+    // Lista de textos únicos de alergias/restricciones presentes
     const [alergiasDelDia, setAlergiasDelDia] = useState([]);
 
     const obtenerServicioJornadaId = () => {
@@ -48,7 +48,7 @@ export default function RefrigeriosPage() {
             setLoadingDatos(true);
             const servicioId = obtenerServicioJornadaId();
 
-            // 1. Traer solo las asistencias activas de hoy para este servicio
+            // Traer solo las asistencias activas del dia para este servicio
             const { data: listaAsistencias, error: errAsistencias } = await supabase
                 .from('asistencias')
                 .select('menorid, estadoasistencia')
@@ -68,7 +68,7 @@ export default function RefrigeriosPage() {
             // Obtener los IDs de los menores que asistieron
             const idsMenoresAsistieron = listaAsistencias.map(a => a.menorid);
 
-            // 2. Consultar grupo y alergias de esos menores
+            // Consultar grupo y alergias de esos menores
             const { data: menoresDetalles, error: errMenores } = await supabase
                 .from('menores')
                 .select('grupoid, alergiasorestricciones')
@@ -76,13 +76,12 @@ export default function RefrigeriosPage() {
 
             if (errMenores) throw errMenores;
 
-            // 3. Procesar datos en una sola pasada
+            // Procesar datos
             const mapeoConteos = {};
             let total = 0;
             const conjuntoAlergias = new Set(); // Evita textos repetidos idénticos
 
             const valoresIgnorables = ['no', 'no aplica', 'ninguna', 'ninguno', 'n/a', 'na', ''];
-            debugger;
 
             menoresDetalles.forEach(menor => {
                 // Sumar al conteo por grupo
@@ -96,7 +95,7 @@ export default function RefrigeriosPage() {
                 const textoMinuscula = textoOriginal.toLowerCase();
 
                 if (textoOriginal && !valoresIgnorables.includes(textoMinuscula)) {
-                    // Guardamos el texto original respetando mayúsculas/minúsculas de como lo escribieron
+                    // Guardar el texto original respetando mayúsculas/minúsculas
                     conjuntoAlergias.add(textoOriginal);
                 }
             });
@@ -225,7 +224,6 @@ export default function RefrigeriosPage() {
                     </div>
                 )}
             </div>
-
         </div>
     );
 }

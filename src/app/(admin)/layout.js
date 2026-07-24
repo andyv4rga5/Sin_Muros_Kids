@@ -10,10 +10,9 @@ import {
     UserCheck,
     BarChart3,
     LogOut,
-    Bell,
     Menu,
     X,
-    Utensils // Añadimos este icono opcional para el rol 6
+    Utensils
 } from 'lucide-react';
 
 export default function AdminLayout({ children }) {
@@ -76,7 +75,7 @@ export default function AdminLayout({ children }) {
             if (!usuario && pathname !== '/hojas-de-vida') {
                 router.push('/login');
             } else if (usuario && perfil?.rolid === 6 && pathname !== '/servidores') {
-                // Si es Rol 6 y está en cualquier otra URL, lo mandamos a su pantalla asignada
+                // Si es Rol 6 y está en cualquier otra URL, redirigir a /servidores
                 router.push('/servidores');
             }
         }
@@ -277,7 +276,7 @@ export default function AdminLayout({ children }) {
                         className="absolute -top-4 w-14 h-14 rounded-full bg-indigo-600 shadow-lg shadow-indigo-600/40 transition-all duration-300 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] z-0"
                         style={{
                             left: perfil?.rolid === 6 
-                                ? '25%' // Centrado para las únicas dos acciones del Rol 6 abajo
+                                ? '25%'
                                 : (perfil?.rolid === 1 || perfil?.rolid === 2)
                                     ? (pathname === '/admin-dashboard' ? '12.5%' : pathname === '/asistencia' ? '37.5%' : pathname === '/hojas-de-vida' ? '62.5%' : '-100%')
                                     : (pathname === '/asistencia' ? '16.66%' : pathname === '/hojas-de-vida' ? '50%' : '-100%'),
@@ -338,7 +337,6 @@ export default function AdminLayout({ children }) {
                             </button>
                         </>
                     )}
-
                 </div>
             </div>
         </div>

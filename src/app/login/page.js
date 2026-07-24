@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
-import { Shield, Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function Login() {
     const router = useRouter();
@@ -21,7 +21,7 @@ export default function Login() {
         setLoading(true);
 
         try {
-            // 1. Iniciar sesión en la autenticación de Supabase
+            // Iniciar sesión con la autenticación de Supabase
             const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password: password,
@@ -31,7 +31,7 @@ export default function Login() {
 
             const userUid = authData.user.id;
 
-            // 2. Consultar el rol de este usuario 
+            // Consultar el rol de este usuario 
             const { data: perfil, error: perfilError } = await supabase
                 .from('perfilesUsuario')
                 .select('rolid')
