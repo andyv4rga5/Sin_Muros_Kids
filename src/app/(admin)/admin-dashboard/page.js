@@ -21,7 +21,6 @@ import {
     PlusCircle
 } from 'lucide-react';
 
-// Importaciones para Chart.js
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -72,6 +71,10 @@ export default function AdminDashboardPage() {
     const haceUnMes = new Date();
     haceUnMes.setDate(haceUnMes.getDate() - 30);
     const haceUnMesStr = formatearFechaISO(haceUnMes);
+
+    // Agregar junto a los demás estados de métricas
+    const [asistenciaPromedioNum, setAsistenciaPromedioNum] = useState(0);
+    const [diferenciaPorcentual, setDiferenciaPorcentual] = useState(0);
 
     // Estado principal del día seleccionado
     const [fechaSeleccionada, setFechaSeleccionada] = useState(fechaHoyStr);
@@ -135,47 +138,74 @@ export default function AdminDashboardPage() {
             setLoading(true);
             const servicioId = obtenerServicioJornadaId();
 
-            // Total general en la BD
+            // A. Total general en la BD
             const { count: totalBD, error: errTotalBD } = await supabase
                 .from('menores')
                 .select('*', { count: 'exact', head: true });
-
             if (errTotalBD) throw errTotalBD;
             setTotalMenoresBD(totalBD || 0);
 
-            // Niños Nuevos este día
+            // B. Niños Nuevos este día
             const isoInicio = `${fechaSeleccionada}T00:00:00.000Z`;
             const isoFin = `${fechaSeleccionada}T23:59:59.999Z`;
-
             const { count: nuevosCount, error: errNuevos } = await supabase
                 .from('menores')
                 .select('*', { count: 'exact', head: true })
                 .gte('fechacreacion', isoInicio)
                 .lte('fechacreacion', isoFin);
+            if (!errNuevos) setNinosNuevosCount(nuevosCount || 0);
 
-            if (!errNuevos) {
-                setNinosNuevosCount(nuevosCount || 0);
-            }
-
-            // Asistencias del día y servicio activo
+            // C. ASISTENCIAS DEL DÍA (Se consulta PRIMERO)
             const { data: asistencias, error: errAsistencias } = await supabase
                 .from('asistencias')
                 .select('menorid, fechaasistencia')
                 .eq('fechaasistencia', fechaSeleccionada)
                 .eq('serviciojornadaid', servicioId)
                 .in('estadoasistencia', ['Presente', 'Retirado']);
-
             if (errAsistencias) throw errAsistencias;
 
-            if (asistencias && asistencias.length > 0) {
-                setAsistentesDia(asistencias.length);
+            const asistentesHoyCount = asistencias ? asistencias.length : 0;
+            setAsistentesDia(asistentesHoyCount);
 
+            // D. CALCULAR PROMEDIO HISTÓRICO (OPCIÓN A)
+            const { data: historialFechas, error: errHistorial } = await supabase
+                .from('asistencias')
+                .select('fechaasistencia, menorid')
+                .eq('serviciojornadaid', servicioId)
+                .in('estadoasistencia', ['Presente', 'Retirado']);
+
+            if (!errHistorial && historialFechas && historialFechas.length > 0) {
+                const conteoPorFecha = {};
+                historialFechas.forEach(a => {
+                    conteoPorFecha[a.fechaasistencia] = (conteoPorFecha[a.fechaasistencia] || 0) + 1;
+                });
+
+                const totalJornadas = Object.keys(conteoPorFecha).length;
+                const totalAsistenciasAcumuladas = historialFechas.length;
+
+                // 1. Promedio histórico real de niños por jornada (Ej: 3)
+                const promedioHistorico = Math.round(totalAsistenciasAcumuladas / (totalJornadas || 1));
+                setAsistenciaPromedioNum(promedioHistorico);
+
+                // 2. Porcentaje de variación frente a los asistentes de HOY
+                if (promedioHistorico > 0) {
+                    const diferencia = Math.round(((asistentesHoyCount - promedioHistorico) / promedioHistorico) * 100);
+                    setDiferenciaPorcentual(diferencia);
+                } else {
+                    setDiferenciaPorcentual(0);
+                }
+            } else {
+                setAsistenciaPromedioNum(0);
+                setDiferenciaPorcentual(0);
+            }
+
+            // E. DETALLES DE MENORES (Grupos y Alergias)
+            if (asistencias && asistencias.length > 0) {
                 const idsMenores = Array.from(new Set(asistencias.map(a => a.menorid)));
                 const { data: detallesMenores, error: errMenores } = await supabase
                     .from('menores')
                     .select('grupoid, alergiasorestricciones')
                     .in('id', idsMenores);
-
                 if (errMenores) throw errMenores;
 
                 const conteos = {};
@@ -184,7 +214,6 @@ export default function AdminDashboardPage() {
 
                 detallesMenores.forEach(m => {
                     if (m.grupoid) conteos[m.grupoid] = (conteos[m.grupoid] || 0) + 1;
-
                     const alergia = m.alergiasorestricciones ? m.alergiasorestricciones.trim().toLowerCase() : '';
                     if (alergia && !ignorables.includes(alergia)) contadorAlergias++;
                 });
@@ -192,7 +221,6 @@ export default function AdminDashboardPage() {
                 setConteosPorGrupo(conteos);
                 setAlertasAlergiasCount(contadorAlergias);
             } else {
-                setAsistentesDia(0);
                 setConteosPorGrupo({});
                 setAlertasAlergiasCount(0);
             }
@@ -312,8 +340,6 @@ export default function AdminDashboardPage() {
         }
     };
 
-    // --- MÉTODOS DEL MODAL PARA VINCULAR ACUDIENTE ---
-
     // Buscar niño por nombre, apellido o documento
     const buscarMenorPorTexto = async (texto) => {
         setBusquedaMenor(texto);
@@ -421,7 +447,7 @@ export default function AdminDashboardPage() {
             }
 
             setMensajeModal({ tipo: 'exito', texto: '¡Acudiente asignado exitosamente al niño!' });
-            
+
             // Limpiar formulario tras 1.5 segundos
             setTimeout(() => {
                 cerrarModalAcudiente();
@@ -509,17 +535,18 @@ export default function AdminDashboardPage() {
         <div className="space-y-6">
 
             {/* HEADER GENERAL CON SELECTOR DE FECHA DÍA, SERVICIO Y BOTÓN NUEVO ACUDIENTE */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-slate-100 p-5 rounded-2xl shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-slate-100 p-4 sm:p-5 rounded-2xl shadow-sm">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Panel de Administración</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Panel de Administración</h1>
                     <p className="text-xs text-slate-500 mt-0.5 capitalize">{fechaFormateada || 'Cargando fecha...'}</p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                {/* Ajustado: w-full en móvil y distribución uniforme con flex-wrap */}
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 sm:gap-3 w-full md:w-auto">
                     {/* Botón para Abrir Modal de Asignar Acudiente */}
                     <button
                         onClick={() => setModalAcudienteAbierto(true)}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
+                        className="flex-1 sm:flex-none justify-center flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer"
                     >
                         <UserCheck2 className="w-4 h-4" />
                         <span>Asignar Acudiente</span>
@@ -527,7 +554,7 @@ export default function AdminDashboardPage() {
 
                     {/* Selector del Día para el Dashboard */}
                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
-                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
                         <input
                             type="date"
                             value={fechaSeleccionada}
@@ -537,16 +564,16 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* Selector de Servicio */}
-                    <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 text-xs font-semibold">
+                    <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 text-xs font-semibold w-full sm:w-auto justify-center">
                         <button
                             onClick={() => setServicioActivo('primer')}
-                            className={`px-3 py-1.5 rounded-lg transition-all ${servicioActivo === 'primer' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all ${servicioActivo === 'primer' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                         >
                             1º Servicio
                         </button>
                         <button
                             onClick={() => setServicioActivo('segundo')}
-                            className={`px-3 py-1.5 rounded-lg transition-all ${servicioActivo === 'segundo' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                            className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all ${servicioActivo === 'segundo' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                         >
                             2º Servicio
                         </button>
@@ -554,104 +581,134 @@ export default function AdminDashboardPage() {
                 </div>
             </div>
 
-            {/* TARJETAS KPI (5 CARDS) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* TARJETAS KPI (5 CARDS) -> Ahora 2 columnas por fila desde móvil (grid-cols-2) */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
 
                 {/* KPI: Asistencia */}
-                <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                <div className="bg-white border border-slate-100 p-3.5 sm:p-4 rounded-2xl shadow-sm flex items-center justify-between">
                     <div>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Asistencia</p>
-                        <h2 className="text-2xl font-black text-slate-900 mt-1">{loading ? '...' : asistentesDia}</h2>
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{loading ? '...' : asistentesDia}</h2>
                     </div>
-                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                        <UserCheck className="w-5 h-5" />
+                    <div className="p-2 sm:p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+                        <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                 </div>
 
                 {/* KPI: Niños Nuevos */}
-                <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                <div className="bg-white border border-slate-100 p-3.5 sm:p-4 rounded-2xl shadow-sm flex items-center justify-between">
                     <div>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Niños Nuevos</p>
-                        <h2 className="text-2xl font-black text-emerald-600 mt-1">{loading ? '...' : ninosNuevosCount}</h2>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Registrados este día</p>
+                        <h2 className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">{loading ? '...' : ninosNuevosCount}</h2>
+                        <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 line-clamp-1">Registrados hoy</p>
                     </div>
-                    <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                        <UserPlus className="w-5 h-5" />
+                    <div className="p-2 sm:p-2.5 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
+                        <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                 </div>
 
                 {/* KPI: Total Registrados BD */}
-                <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                <div className="bg-white border border-slate-100 p-3.5 sm:p-4 rounded-2xl shadow-sm flex items-center justify-between">
                     <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total BD</p>
-                        <h2 className="text-2xl font-black text-slate-900 mt-1">{loading ? '...' : totalMenoresBD}</h2>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Vinculados</p>
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{loading ? '...' : totalMenoresBD}</h2>
                     </div>
-                    <div className="p-2.5 bg-slate-100 text-slate-700 rounded-xl">
-                        <Users className="w-5 h-5" />
+                    <div className="p-2 sm:p-2.5 bg-slate-100 text-slate-700 rounded-xl shrink-0">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                 </div>
 
-                {/* KPI: Alertas Alimentarias */}
-                <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex items-center justify-between">
-                    <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Alergias</p>
-                        <h2 className={`text-2xl font-black mt-1 ${alertasAlergiasCount > 0 ? 'text-red-600' : 'text-slate-900'}`}>
-                            {loading ? '...' : alertasAlergiasCount}
-                        </h2>
+                {/* KPI: Asistencia Promedio (vs Histórico) */}
+                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center justify-between relative">
+                    <div className="flex flex-col gap-1">
+                        {/* Título uniforme */}
+                        <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+                            ASISTENCIA PROMEDIO
+                        </span>
+
+                        {/* Valor principal en negrita e igual color que los otros KPIs */}
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-black text-slate-800">
+                                {asistenciaPromedioNum}
+                            </span>
+
+                            {/* Badge redondeado idéntico al diseño original de la app */}
+                            <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${diferenciaPorcentual >= 0
+                                        ? 'bg-emerald-50 text-emerald-600'
+                                        : 'bg-rose-50 text-rose-600'
+                                    }`}
+                            >
+                                {diferenciaPorcentual >= 0 ? `+${diferenciaPorcentual}%` : `${diferenciaPorcentual}%`}
+                            </span>
+                        </div>
                     </div>
-                    <div className={`p-2.5 rounded-xl ${alertasAlergiasCount > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
-                        <AlertTriangle className="w-5 h-5" />
+
+                    {/* Contenedor del Icono Naranja/Cálido */}
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 shrink-0">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                            />
+                        </svg>
                     </div>
                 </div>
 
-                {/* KPI: Porcentaje Cobertura */}
-                <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                {/* KPI: Porcentaje Cobertura (Ocupa las 2 columnas en móvil si son 5 ítems para mantener la simetría) */}
+                <div className="col-span-2 sm:col-span-1 bg-white border border-slate-100 p-3.5 sm:p-4 rounded-2xl shadow-sm flex items-center justify-between">
                     <div>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">% Cobertura</p>
-                        <h2 className="text-2xl font-black text-slate-900 mt-1">
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
                             {loading ? '...' : `${totalMenoresBD > 0 ? Math.round((asistentesDia / totalMenoresBD) * 100) : 0}%`}
                         </h2>
                     </div>
-                    <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
-                        <ShieldCheck className="w-5 h-5" />
+                    <div className="p-2 sm:p-2.5 bg-purple-50 text-purple-600 rounded-xl shrink-0">
+                        <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                 </div>
-
             </div>
 
-            {/* SECCIÓN DE EXPORTACIÓN A EXCEL POR RANGO DE FECHAS */}
-            <div className="bg-white border border-slate-100 p-4 px-5 rounded-2xl shadow-sm flex items-center justify-between gap-4">
+            {/* SECCIÓN DE EXPORTACIÓN A EXCEL POR RANGO DE FECHAS (Súper adaptativa sin desbordarse) */}
+            <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
 
-                {/* Título e Ícono a la Izquierda */}
+                {/* Título e Ícono */}
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl shrink-0">
                         <FileSpreadsheet className="w-5 h-5" />
                     </div>
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-sm font-bold text-slate-900 whitespace-nowrap">Exportar Reporte de Asistencia</h2>
-                        <span className="hidden md:inline-block text-xs text-slate-400 font-normal">|</span>
-                        <p className="hidden md:block text-xs text-slate-500">Selecciona un rango de fechas para descargar el consolidado</p>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900">Exportar Reporte de Asistencia</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">Selecciona un rango de fechas para descargar el consolidado</p>
                     </div>
                 </div>
 
-                {/* Fechas + Botón a la Derecha en la misma fila */}
-                <div className="flex items-center gap-3 shrink-0">
+                {/* Fechas + Botón (Se acomodan verticalmente en móvil y horizontal en desktop) */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
 
                     {/* Input Rango de Fechas */}
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
+                    <div className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs w-full sm:w-auto">
                         <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
                         <input
                             type="date"
                             value={fechaInicioReporte}
                             onChange={(e) => setFechaInicioReporte(e.target.value)}
-                            className="bg-transparent border-none text-slate-700 font-semibold focus:outline-none cursor-pointer p-0 text-xs"
+                            className="bg-transparent border-none text-slate-700 font-semibold focus:outline-none cursor-pointer p-0 text-xs w-full max-w-[110px]"
                         />
                         <span className="text-slate-400 font-bold px-0.5">-</span>
                         <input
                             type="date"
                             value={fechaFinReporte}
                             onChange={(e) => setFechaFinReporte(e.target.value)}
-                            className="bg-transparent border-none text-slate-700 font-semibold focus:outline-none cursor-pointer p-0 text-xs"
+                            className="bg-transparent border-none text-slate-700 font-semibold focus:outline-none cursor-pointer p-0 text-xs w-full max-w-[110px]"
                         />
                     </div>
 
@@ -659,7 +716,7 @@ export default function AdminDashboardPage() {
                     <button
                         onClick={generarReporteExcel}
                         disabled={exportandoExcel}
-                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-emerald-400 text-white font-semibold text-xs px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer whitespace-nowrap"
+                        className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-emerald-400 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs cursor-pointer whitespace-nowrap w-full sm:w-auto"
                     >
                         {exportandoExcel ? (
                             <>
@@ -676,10 +733,10 @@ export default function AdminDashboardPage() {
                 </div>
             </div>
 
-            {/* SECCIÓN DE ASISTENCIA POR GRUPOS (TARJETAS) */}
-            <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
+            {/* SECCIÓN DE ASISTENCIA POR GRUPOS */}
+            <div className="bg-white border border-slate-100 p-4 sm:p-6 rounded-2xl shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Asistencia por Grupos</h2>
+                    <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">Asistencia por Grupos</h2>
                     <span className="text-xs text-slate-400 font-medium">Servicio Activo</span>
                 </div>
 
@@ -693,12 +750,12 @@ export default function AdminDashboardPage() {
                         {Object.entries(MAPA_GRUPOS).map(([id, info]) => {
                             const cantidad = conteosPorGrupo[id] || 0;
                             return (
-                                <div key={id} className="bg-slate-50/70 border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
-                                    <span className={`inline-block w-max px-2.5 py-1 rounded-lg border text-[11px] font-bold ${info.estilo}`}>
+                                <div key={id} className="bg-slate-50/70 border border-slate-100 p-3.5 sm:p-4 rounded-xl flex flex-col justify-between">
+                                    <span className={`inline-block w-max px-2.5 py-1 rounded-lg border text-[10px] sm:text-[11px] font-bold ${info.estilo}`}>
                                         {info.nombre}
                                     </span>
                                     <div className="mt-3">
-                                        <p className="text-2xl font-black text-slate-800">{String(cantidad).padStart(2, '0')}</p>
+                                        <p className="text-xl sm:text-2xl font-black text-slate-800">{String(cantidad).padStart(2, '0')}</p>
                                         <p className="text-[10px] text-slate-400 uppercase font-bold mt-0.5">Asistentes</p>
                                     </div>
                                 </div>
@@ -712,11 +769,11 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 {/* Asistencia por Fecha (Tendencia) */}
-                <div className="lg:col-span-2 bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
+                <div className="lg:col-span-2 bg-white border border-slate-100 p-4 sm:p-6 rounded-2xl shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
                         <div className="flex items-center gap-2">
                             <TrendingUp className="w-5 h-5 text-blue-600" />
-                            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Tendencia de Asistencia</h2>
+                            <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">Tendencia de Asistencia</h2>
                         </div>
 
                         {/* SELECTOR DE DOS FECHAS EXCLUSIVO PARA LA GRÁFICA */}
@@ -750,11 +807,11 @@ export default function AdminDashboardPage() {
                 </div>
 
                 {/* Distribución Grupal (Dona) */}
-                <div className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm space-y-4">
+                <div className="bg-white border border-slate-100 p-4 sm:p-6 rounded-2xl shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                         <div className="flex items-center gap-2">
                             <PieChartIcon className="w-5 h-5 text-emerald-600" />
-                            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Distribución Grupal</h2>
+                            <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">Distribución Grupal</h2>
                         </div>
                     </div>
 
@@ -774,7 +831,7 @@ export default function AdminDashboardPage() {
             {modalAcudienteAbierto && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-                        
+
                         {/* Header Modal */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-2">
@@ -793,11 +850,10 @@ export default function AdminDashboardPage() {
 
                             {/* Mensajes de Alerta/Info */}
                             {mensajeModal.texto && (
-                                <div className={`p-3 rounded-xl text-xs font-medium ${
-                                    mensajeModal.tipo === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                <div className={`p-3 rounded-xl text-xs font-medium ${mensajeModal.tipo === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
                                     mensajeModal.tipo === 'exito' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                    'bg-blue-50 text-blue-700 border border-blue-200'
-                                }`}>
+                                        'bg-blue-50 text-blue-700 border border-blue-200'
+                                    }`}>
                                     {mensajeModal.texto}
                                 </div>
                             )}
