@@ -342,7 +342,7 @@ export default function AsistenciaPage() {
             </span>
           </div>
           <div>
-            <h3 className="text-lg sm:text-2xl font-black text-slate-800 leading-none">03</h3>
+            <h3 className="text-lg sm:text-2xl font-black text-slate-800 leading-none">00</h3>
             <p className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-1">Alertas Pendientes</p>
           </div>
         </div>

@@ -12,8 +12,6 @@ export default function RootPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // En cuanto la app arranca en localhost:3000, 
-        // empuja al usuario hacia el login sin romper nada.
         router.push('/login');
     }, [router]);
 
